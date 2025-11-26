@@ -5,7 +5,7 @@
   "main": "dist/server.js",
   "scripts": {
     "dev": "nodemon --exec tsx src/server.ts",
-    "dev:worker": "nodemon --exec tsx src/workers/worker-manager.ts",
+    "dev:worker": "tsx watch --conditions=worker src/workers/worker-manager.ts",
     "build": "tsc",
     "start": "node dist/server.js",
     "start:worker": "node dist/workers/worker-manager.js",
@@ -17,7 +17,11 @@
     "docker:logs": "docker-compose logs -f",
     "check": "tsc --noEmit"
   },
-  "keywords": ["portfolio", "finance", "optimization"],
+  "keywords": [
+    "portfolio",
+    "finance",
+    "optimization"
+  ],
   "author": "Crescite Team",
   "license": "MIT",
   "dependencies": {
