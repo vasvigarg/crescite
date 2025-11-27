@@ -4,13 +4,13 @@
 # CRITICAL: Configuration Variables (MUST BE CORRECT)
 # =======================================================
 BASE_URL="http://localhost:3000/api"
-USER_EMAIL="test12@crescite.com"
+USER_EMAIL="test26@crescite.com"
 USER_PASSWORD="SecurePass123!"
 
 # !!! 1. VERIFY FILE PATH: Use the WSL/Linux path to your Windows file !!!
-PDF_FILE_PATH="/mnt/c/Users/HP/Downloads/mock_portfolio_statement.pdf"
+PDF_FILE_PATH="/mnt/c/Users/HP/Downloads/sample_cas_content.pdf"
 # !!! 2. VERIFY FILE SIZE: Use the EXACT byte size for the file below !!!
-FILE_SIZE_BYTES=3688
+FILE_SIZE_BYTES=70133
 # =======================================================
 
 # Dynamic Variables
@@ -25,6 +25,7 @@ extract_value() {
 }
 
 # Function to poll the job status (Test 6)
+# Function to poll the job status (Test 6)
 poll_job_status() {
     local status="PENDING"
     local count=0
@@ -34,16 +35,19 @@ poll_job_status() {
         response=$(curl -s -X GET "$BASE_URL/jobs/$JOB_ID" \
             -H "Authorization: Bearer $AUTH_TOKEN")
             
+        # Debug: Print the raw response to see what we're getting
+        # echo "Debug Response: $response"
+        
         status=$(extract_value "$response" "data.status")
         
         if [[ "$status" == "FAILED" ]]; then
             error_msg=$(extract_value "$response" "data.errorMessage")
-            echo "🔴 Job FAILED. Error: $error_msg"
+            echo -e "\n🔴 Job FAILED. Error: $error_msg"
             return 1
         fi
         
         echo "Status: $status (Attempt: $((count+1)))"
-        sleep 5
+        sleep 2
         count=$((count + 1))
     done
     
@@ -117,14 +121,21 @@ echo "-----------------------------------"
 echo "--- Test 5: Upload File to S3 ---"
 echo "Starting binary upload of $PDF_FILE_PATH (Size: $FILE_SIZE_BYTES bytes)..."
 
-UPLOAD_RESULT=$(curl -s -o /dev/null -w "%{http_code}" -X PUT "$UPLOAD_URL" \
+# Capture both HTTP code and response body
+UPLOAD_RESPONSE_BODY=$(mktemp)
+UPLOAD_HTTP_CODE=$(curl -s -w "%{http_code}" -o "$UPLOAD_RESPONSE_BODY" -X PUT "$UPLOAD_URL" \
   -H "Content-Type: application/pdf" \
   --data-binary "@$PDF_FILE_PATH")
 
-if [[ "$UPLOAD_RESULT" == "200" ]]; then
+echo "Upload HTTP Code: $UPLOAD_HTTP_CODE"
+echo "Upload Response Body:"
+cat "$UPLOAD_RESPONSE_BODY"
+rm "$UPLOAD_RESPONSE_BODY"
+
+if [[ "$UPLOAD_HTTP_CODE" == "200" ]]; then
     echo "✅ File upload successful (HTTP 200 OK)."
 else
-    echo "❌ ERROR: File upload failed with HTTP status code $UPLOAD_RESULT."
+    echo "❌ ERROR: File upload failed with HTTP status code $UPLOAD_HTTP_CODE."
     echo "This is usually caused by an incorrect FILE_SIZE_BYTES or an expired URL."
     exit 1
 fi

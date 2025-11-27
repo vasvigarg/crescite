@@ -4,12 +4,14 @@ import amqp from "amqplib";
 import { env } from "../config/env";
 import { PDFParser } from "./pdf-parser";
 import { PowerScoreCalculator } from "./power-score-calculator";
+import { calculateRebalance } from "./rebalance-calculator";
 import {
   buildReportDTO,
   buildPowerScoreSummaryDTO,
 } from "./mappers/report.mapper";
 import { s3Client, S3_CONFIG } from "../config/aws";
 import { GetObjectCommand } from "@aws-sdk/client-s3";
+import { cacheHelper } from "../config/redis";
 
 const prisma = new PrismaClient();
 const pdfParser = new PDFParser();
@@ -35,6 +37,8 @@ async function processJob(jobMessage: any) {
         processedBy: `worker-${workerId}`,
       },
     });
+    // Invalidate cache
+    await cacheHelper.del(`job:${jobId}`);
 
     // Step 1: Download file from S3
     console.log(`[Worker ${workerId}] Downloading file from S3: ${s3Key}`);
@@ -58,7 +62,8 @@ async function processJob(jobMessage: any) {
 
     // Step 5: Generate report using DTOs (JSON-safe)
     console.log(`[Worker ${workerId}] Generating report...`);
-    const reportData = buildReportDTO(lots, powerScores);
+    const rebalance = calculateRebalance(lots);
+    const reportData = buildReportDTO(lots, powerScores, rebalance);
     const powerScoreSummary = buildPowerScoreSummaryDTO(powerScores);
 
     // Step 6: Save report to database
@@ -80,6 +85,8 @@ async function processJob(jobMessage: any) {
         completedAt: new Date(),
       },
     });
+    // Invalidate cache
+    await cacheHelper.del(`job:${jobId}`);
 
     console.log(`[Worker ${workerId}] Job ${jobId} completed successfully`);
 
@@ -104,6 +111,9 @@ async function processJob(jobMessage: any) {
           completedAt: new Date(),
         },
       });
+      // Invalidate cache
+      await cacheHelper.del(`job:${jobId}`);
+      
       console.log(
         `[Worker ${workerId}] Job status updated successfully. New status: ${updatedJob.status}`
       );
@@ -124,45 +134,57 @@ async function processJob(jobMessage: any) {
 }
 
 async function downloadFromS3(s3Key: string): Promise<Buffer> {
-  try {
-    console.log(`[Worker ${workerId}] downloadFromS3 - Starting download`);
-    console.log(`[Worker ${workerId}] Bucket: ${S3_CONFIG.bucket}`);
-    console.log(`[Worker ${workerId}] Region: ${S3_CONFIG.region}`);
-    console.log(`[Worker ${workerId}] S3 Key: ${s3Key}`);
+  let attempts = 0;
+  const maxAttempts = 3;
 
-    const command = new GetObjectCommand({
-      Bucket: S3_CONFIG.bucket,
-      Key: s3Key,
-    });
+  while (attempts < maxAttempts) {
+    try {
+      attempts++;
+      console.log(`[Worker ${workerId}] downloadFromS3 - Attempt ${attempts}/${maxAttempts}`);
+      console.log(`[Worker ${workerId}] Bucket: ${S3_CONFIG.bucket}`);
+      console.log(`[Worker ${workerId}] Region: ${S3_CONFIG.region}`);
+      console.log(`[Worker ${workerId}] S3 Key: ${s3Key}`);
 
-    console.log(`[Worker ${workerId}] Sending GetObjectCommand to S3...`);
-    const response = await s3Client.send(command);
-    console.log(`[Worker ${workerId}] GetObjectCommand succeeded`);
+      const command = new GetObjectCommand({
+        Bucket: S3_CONFIG.bucket,
+        Key: s3Key,
+      });
 
-    if (!response.Body) {
-      throw new Error("No data received from S3");
+      console.log(`[Worker ${workerId}] Sending GetObjectCommand to S3...`);
+      const response = await s3Client.send(command);
+      console.log(`[Worker ${workerId}] GetObjectCommand succeeded`);
+
+      if (!response.Body) {
+        throw new Error("No data received from S3");
+      }
+
+      // Convert stream to buffer
+      console.log(`[Worker ${workerId}] Converting stream to buffer...`);
+      const chunks: Uint8Array[] = [];
+      for await (const chunk of response.Body as any) {
+        chunks.push(chunk);
+      }
+
+      const buffer = Buffer.concat(chunks);
+      console.log(
+        `[Worker ${workerId}] Download successful. Buffer size: ${buffer.length} bytes`
+      );
+      return buffer;
+    } catch (error: any) {
+      console.error(`[Worker ${workerId}] downloadFromS3 Attempt ${attempts} FAILED:`);
+      console.error(`[Worker ${workerId}] Error name: ${error.name}`);
+      console.error(`[Worker ${workerId}] Error message: ${error.message}`);
+      
+      if (attempts === maxAttempts) {
+        console.error(`[Worker ${workerId}] Max attempts reached. Failing job.`);
+        throw error;
+      }
+      
+      console.log(`[Worker ${workerId}] Retrying in 2 seconds...`);
+      await new Promise((resolve) => setTimeout(resolve, 2000));
     }
-
-    // Convert stream to buffer
-    console.log(`[Worker ${workerId}] Converting stream to buffer...`);
-    const chunks: Uint8Array[] = [];
-    for await (const chunk of response.Body as any) {
-      chunks.push(chunk);
-    }
-
-    const buffer = Buffer.concat(chunks);
-    console.log(
-      `[Worker ${workerId}] Download successful. Buffer size: ${buffer.length} bytes`
-    );
-    return buffer;
-  } catch (error: any) {
-    console.error(`[Worker ${workerId}] downloadFromS3 FAILED:`);
-    console.error(`[Worker ${workerId}] Error name: ${error.name}`);
-    console.error(`[Worker ${workerId}] Error message: ${error.message}`);
-    console.error(`[Worker ${workerId}] Error code: ${error.code}`);
-    console.error(`[Worker ${workerId}] Error stack:`, error.stack);
-    throw error;
   }
+  throw new Error("Download failed after max attempts");
 }
 
 // Connect to RabbitMQ and start consuming

@@ -1,0 +1,18 @@
+Crescite Mutual Fund Statement
+
+Axis Bluechip Fund - Direct Plan - Growth Option
+Folio No: 9876543210
+
+Date        Transaction     Units       NAV         Amount
+01-01-2023  Purchase        100.000     50.00       5000.00
+01-02-2023  SIP             50.000      52.00       2600.00
+15-03-2023  Redemption      25.000      55.00       1375.00
+
+---------------------------------------------------------
+
+SBI Small Cap Fund - Regular Plan - Growth
+Folio No: 1122334455
+
+Date        Transaction     Units       NAV         Amount
+10-01-2023  Purchase        200.000     100.00      20000.00
+20-02-2023  SIP             10.000      102.50      1025.00

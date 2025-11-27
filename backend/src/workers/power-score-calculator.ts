@@ -4,6 +4,8 @@ export interface PowerScore {
   fundName: string;
   score: number;
   rating: "RED" | "YELLOW" | "GREEN";
+  /** Human‑readable advice for the user */
+  recommendation?: string;
   metrics: {
     rollingReturn: number;
     sharpeRatio: number;
@@ -19,7 +21,6 @@ export class PowerScoreCalculator {
     const powerScores: PowerScore[] = [];
 
     for (const [fundName, fundLots] of Object.entries(fundGroups)) {
-      // Calculate metrics for this fund
       const score = await this.calculateFundScore(fundName, fundLots);
       powerScores.push(score);
     }
@@ -73,15 +74,29 @@ export class PowerScoreCalculator {
     else if (score >= 40) rating = "YELLOW";
     else rating = "RED";
 
+    // Return PowerScore with recommendation
     return {
       fundName,
       score: Math.round(score),
       rating,
+      recommendation: this.deriveRecommendation(rating),
       metrics: {
         rollingReturn: parseFloat(returns.toFixed(2)),
         sharpeRatio: parseFloat(sharpeRatio.toFixed(2)),
         benchmarkComparison: parseFloat(benchmarkComparison.toFixed(2)),
       },
     };
+  }
+
+  /** Very simple rule‑based advice – can be replaced with a richer model later */
+  private deriveRecommendation(rating: "RED" | "YELLOW" | "GREEN"): string {
+    switch (rating) {
+      case "GREEN":
+        return "Hold – fund is performing well.";
+      case "YELLOW":
+        return "Review – moderate performance; consider rebalancing.";
+      case "RED":
+        return "Consider reducing exposure or switching to a better‑performing fund.";
+    }
   }
 }

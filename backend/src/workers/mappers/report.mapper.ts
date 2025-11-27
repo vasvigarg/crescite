@@ -3,6 +3,7 @@ import {
   PowerScoreDTO,
   LotDTO,
   PowerScoreSummaryDTO,
+  RebalanceDTO,
 } from "../../types/report.dto";
 
 /**
@@ -32,10 +33,27 @@ export function mapLotsToDTO(lots: any[]): LotDTO[] {
   }));
 }
 
+export function mapRebalanceToDTO(rebalance: any): RebalanceDTO {
+  if (!rebalance) return undefined as any;
+  return {
+    targetAllocation: rebalance.targetAllocation,
+    currentAllocation: rebalance.currentAllocation,
+    actions: (rebalance.actions || []).map((a: any) => ({
+      action: a.action,
+      assetClass: a.assetClass,
+      amount: Number(a.amount) || 0,
+    })),
+  };
+}
+
 /**
  * Build complete report DTO
  */
-export function buildReportDTO(lots: any[], powerScores: any[]): ReportDTO {
+export function buildReportDTO(
+  lots: any[],
+  powerScores: any[],
+  rebalance?: any
+): ReportDTO {
   const lotsDto = mapLotsToDTO(lots);
   const powerScoresDto = mapPowerScoresToDTO(powerScores);
 
@@ -50,6 +68,7 @@ export function buildReportDTO(lots: any[], powerScores: any[]): ReportDTO {
     powerScores: powerScoresDto,
     lots: lotsDto,
     generatedAt: new Date().toISOString(),
+    rebalance: rebalance ? mapRebalanceToDTO(rebalance) : undefined,
   };
 
   return report;
