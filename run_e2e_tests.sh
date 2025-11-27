@@ -1,10 +1,10 @@
 #!/bin/bash
 
 # =======================================================
-# CRITICAL: Configuration Variables (MUST BE CORRECT)
+# CRITICAL: Configuration Variables
 # =======================================================
 BASE_URL="http://localhost:3000/api"
-USER_EMAIL="test26@crescite.com"
+USER_EMAIL="test29@crescite.com"
 USER_PASSWORD="SecurePass123!"
 
 # !!! 1. VERIFY FILE PATH: Use the WSL/Linux path to your Windows file !!!
@@ -25,7 +25,6 @@ extract_value() {
 }
 
 # Function to poll the job status (Test 6)
-# Function to poll the job status (Test 6)
 poll_job_status() {
     local status="PENDING"
     local count=0
@@ -42,7 +41,7 @@ poll_job_status() {
         
         if [[ "$status" == "FAILED" ]]; then
             error_msg=$(extract_value "$response" "data.errorMessage")
-            echo -e "\n🔴 Job FAILED. Error: $error_msg"
+            echo -e "\n❌ Job FAILED. Error: $error_msg"
             return 1
         fi
         
@@ -152,11 +151,11 @@ if poll_job_status; then
     echo "$REPORT_RESPONSE" | jq .
     
     if echo "$REPORT_RESPONSE" | grep -q "reportData"; then
-        echo -e "\n🚀 E2E Test Completed Successfully! Report retrieved."
+        echo -e "\n✅ E2E Test Completed Successfully! Report retrieved."
     else
-        echo -e "\n🔴 E2E Test FAILED: Report could not be retrieved. API response:"
+        echo -e "\n❌ E2E Test FAILED: Report could not be retrieved. API response:"
         echo "$REPORT_RESPONSE"
     fi
 else
-    echo -e "\n🔴 E2E Test FAILED at Job Processing step."
+    echo -e "\n❌ E2E Test FAILED at Job Processing step."
 fi
