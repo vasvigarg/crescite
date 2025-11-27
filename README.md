@@ -28,6 +28,7 @@ Crescite is a backend service that automates the analysis and rebalancing of mut
 - **RabbitMQ** – distributed job processing across worker threads.
 - **AWS S3** – secure storage of uploaded PDFs.
 - **mfapi.in** – free public API for Indian mutual‑fund NAV history.
+- **jsonwebtoken** – JWT based authentication for securing API endpoints.
 - **Fuse.js** – fuzzy‑search library for matching fund names to API scheme codes.
 - **Jest & ts‑jest** – test framework (unit and integration tests).
 - **pdf-parse** – extracts text from uploaded PDF files.

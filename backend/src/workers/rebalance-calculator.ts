@@ -1,5 +1,5 @@
 import { ParsedLot } from "./pdf-parser";
-import { RebalanceAction, RebalanceDTO } from "../../types/report.dto";
+import { RebalanceAction, RebalanceDTO } from "../types/report.dto";
 
 export const TARGET_ALLOCATION = {
   equity: 0.70,
